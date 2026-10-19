@@ -1120,18 +1120,19 @@ QString Positioner::loadConfigData() const
 
 void Positioner::loadChangedPositions()
 {
-    const auto jsonArr = QJsonDocument::fromJson(m_applet->config().group(u"General"_s).readEntry(u"changedPositions"_s).toUtf8()).object();
+    auto jsonArr = QJsonDocument::fromJson(m_applet->config().group(u"General"_s).readEntry(u"changedPositions"_s).toUtf8()).object();
 
     m_changedPositions.clear();
     m_changedPositions.reserve(jsonArr.size());
 
-    for (auto it = jsonArr.begin(), itEnd = jsonArr.end(); it != itEnd; ++it) {
-        const auto filename = it.key();
+    for (const auto &key : jsonArr.keys()) {
+        const auto filename = key;
+
         if (filename.isEmpty()) {
             continue;
         }
 
-        const auto values = it.value().toVariant().toStringList();
+        const auto values = jsonArr[key].toVariant().toStringList();
         if (values.size() != 3) {
             continue;
         }
@@ -1287,11 +1288,29 @@ void Positioner::onItemRenamed(const QString &filename, const QString &newFilena
     savePositionsConfig();
 }
 
+void Positioner::onItemDeleted(const QUrl &url)
+{
+    updatePositionsList();
+    m_positions.remove(url.toString());
+    convertFolderModelData();
+    savePositionsConfig();
+}
+
 // Save positions only when listing is done, so we
 // do not save them during they're being moved due to
 // geometry changes
-void Positioner::onListingCompleted()
+void Positioner::onListingCompleted(const QList<QUrl> &urls)
 {
+    QHash<QString, GridPosition> newPositions;
+
+    for (const auto &url : urls) {
+        if (m_positions.contains(url.toString())) {
+            newPositions[url.toString()] = m_positions[url.toString()];
+        }
+    }
+
+    m_positions = newPositions;
+
     savePositionsConfig();
 }
 
@@ -1310,6 +1329,7 @@ void Positioner::connectSignals(FolderModel *model)
     connect(m_folderModel, &FolderModel::statusChanged, this, &Positioner::sourceStatusChanged, Qt::UniqueConnection);
     connect(m_folderModel, &FolderModel::itemRenamed, this, &Positioner::onItemRenamed, Qt::UniqueConnection);
     connect(m_folderModel, &FolderModel::listingCompleted, this, &Positioner::onListingCompleted, Qt::UniqueConnection);
+    connect(m_folderModel, &FolderModel::itemDeleted, this, &Positioner::onItemDeleted, Qt::UniqueConnection);
 }
 
 void Positioner::disconnectSignals(FolderModel *model)
@@ -1327,6 +1347,7 @@ void Positioner::disconnectSignals(FolderModel *model)
     disconnect(m_folderModel, &FolderModel::statusChanged, this, &Positioner::sourceStatusChanged);
     disconnect(m_folderModel, &FolderModel::itemRenamed, this, &Positioner::onItemRenamed);
     disconnect(m_folderModel, &FolderModel::listingCompleted, this, &Positioner::onListingCompleted);
+    disconnect(m_folderModel, &FolderModel::itemDeleted, this, &Positioner::onItemDeleted);
 }
 
 #include "moc_positioner.cpp"

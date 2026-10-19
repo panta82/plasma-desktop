@@ -24,6 +24,7 @@
 #include <QDBusServiceWatcher>
 #include <QDir>
 #include <QDrag>
+#include <QFileInfo>
 #include <QImage>
 #include <QItemSelectionModel>
 #include <QJSEngine>
@@ -227,9 +228,9 @@ FolderModel::FolderModel(QObject *parent)
 
     connect(dirLister, &KCoreDirLister::started, this, std::bind(&FolderModel::setStatus, this, Status::Listing));
 
-    QObject::connect(dirLister, &KCoreDirLister::completed, this, [this] {
+    QObject::connect(dirLister, &KCoreDirLister::completed, this, [this, dirLister] {
         setStatus(Status::Ready);
-        Q_EMIT listingCompleted();
+        Q_EMIT listingCompleted(dirLister->items().urlList());
     });
 
     QObject::connect(dirLister, &KCoreDirLister::canceled, this, [this] {
@@ -1662,6 +1663,7 @@ void FolderModel::evictFromIsDirCache(const KFileItemList &items)
     for (const KFileItem &item : items) {
         m_screenMapper->removeFromMap(item.url(), m_currentActivity);
         m_isDirCache.remove(item.url());
+        Q_EMIT itemDeleted(item.url());
     }
 }
 
@@ -2394,8 +2396,9 @@ void FolderModel::moveSelectedToTrash()
         }
     }
 
+    const auto urls = selectedUrls();
     using Iface = KIO::AskUserActionInterface;
-    auto *job = new KIO::DeleteOrTrashJob(selectedUrls(), Iface::Trash, Iface::DefaultConfirmation, this);
+    auto *job = new KIO::DeleteOrTrashJob(urls, Iface::Trash, Iface::DefaultConfirmation, this);
     job->setUiDelegate(new KNotificationJobUiDelegate(KJobUiDelegate::AutoHandlingEnabled));
     job->start();
 }
