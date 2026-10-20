@@ -1061,13 +1061,32 @@ void Positioner::savePositionsConfig()
         auto doc = QJsonDocument::fromJson(confdata.toUtf8());
         QJsonObject root;
         // Iterate over the old data
+        const auto currentPositions = positions();
         for (const auto &item : doc.toVariant().toMap().asKeyValueRange()) {
             if (item.first != m_resolution) {
-                root.insert(item.first, QJsonValue::fromVariant(item.second));
+                QStringList newPositions;
+                const QStringList positions = item.second.toStringList();
+                if (positions.size() >= PositionsConstants::headerSize
+                    && (positions.size() - PositionsConstants::headerSize) % PositionsConstants::bucketSize == 0) {
+                    newPositions.append(positions[0]);
+                    newPositions.append(positions[1]);
+
+                    for (qsizetype offset = PositionsConstants::headerSize; offset < positions.size(); offset += PositionsConstants::bucketSize) {
+                        const auto name = positions[offset + PositionsConstants::filenameOffset];
+                        const auto stripe = positions[offset + PositionsConstants::stripeOffset];
+                        const auto pos = positions[offset + PositionsConstants::posOffset];
+                        if (currentPositions.contains(name)) {
+                            newPositions.append(name);
+                            newPositions.append(stripe);
+                            newPositions.append(pos);
+                        }
+                    }
+                }
+                root.insert(item.first, QJsonValue::fromVariant(newPositions));
             }
         }
         // Append our new item
-        root.insert(m_resolution, QJsonArray::fromStringList(positions()));
+        root.insert(m_resolution, QJsonArray::fromStringList(currentPositions));
 
         const QByteArray data = QJsonDocument(root).toJson(QJsonDocument::Compact);
         auto config = m_applet->config().group(QStringLiteral("General"));
