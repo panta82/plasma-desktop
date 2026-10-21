@@ -37,7 +37,7 @@ PlasmaExtras.PlasmoidHeading {
 
     PC3.TabBar {
         id: tabBar
-        property real tabWidth: Math.max(applicationsTab.implicitWidth, placesTab.implicitWidth)
+        property real tabWidth: Math.max(homeTab.implicitWidth, applicationsTab.implicitWidth, placesTab.implicitWidth)
         focus: true
         width: root.preferredTabBarWidth > 0 ? root.preferredTabBarWidth : implicitWidth
         implicitWidth: contentWidth + leftPadding + rightPadding
@@ -84,7 +84,7 @@ PlasmaExtras.PlasmoidHeading {
         }
 
         PC3.TabButton {
-            id: applicationsTab
+            id: homeTab
             focus: true
             width: tabBar.tabWidth
             anchors.top: tabBarListView.contentItem.top
@@ -93,9 +93,21 @@ PlasmaExtras.PlasmoidHeading {
             anchors.bottomMargin: -root.bottomPadding
             icon.width: PlasmaCore.Units.iconSizes.smallMedium
             icon.height: PlasmaCore.Units.iconSizes.smallMedium
-            icon.name: "applications-other"
-            text: i18n("Applications")
+            icon.name: "go-home"
+            text: i18n("Home")
             KeyNavigation.backtab: plasmoid.rootItem.contentArea ? plasmoid.rootItem.contentArea : null
+        }
+        PC3.TabButton {
+            id: applicationsTab
+            width: tabBar.tabWidth
+            anchors.top: tabBarListView.contentItem.top
+            anchors.bottom: tabBarListView.contentItem.bottom
+            anchors.topMargin: -root.topPadding
+            anchors.bottomMargin: -root.bottomPadding
+            icon.width: PlasmaCore.Units.iconSizes.smallMedium
+            icon.height: PlasmaCore.Units.iconSizes.smallMedium
+            icon.name: "applications-other"
+            text: i18n("Apps")
         }
         PC3.TabButton {
             id: placesTab
@@ -119,37 +131,26 @@ PlasmaExtras.PlasmoidHeading {
             }
         }
 
-        Keys.onLeftPressed: {
-            let moved = false
-            if (LayoutMirroring.enabled && currentIndex === 0) {
-                incrementCurrentIndex()
-                currentItem.forceActiveFocus(Qt.TabFocusReason)
-                moved = true
-            } else if (currentIndex === 1) {
-                decrementCurrentIndex()
-                currentItem.forceActiveFocus(Qt.BacktabFocusReason)
-                moved = true
-            }
-            if (!moved && currentIndex === 1) {
+        // Moves towards the higher indexes when `forward`, then on to the leave buttons
+        function navigate(forward) {
+            if (forward ? currentIndex < count - 1 : currentIndex > 0) {
+                if (forward) {
+                    incrementCurrentIndex()
+                } else {
+                    decrementCurrentIndex()
+                }
+                currentItem.forceActiveFocus(forward ? Qt.TabFocusReason : Qt.BacktabFocusReason)
+            } else if (forward) {
                 leaveButtons.nextItemInFocusChain().forceActiveFocus(Qt.TabFocusReason)
             }
         }
-        Keys.onRightPressed: {
-            let moved = false
-            if (LayoutMirroring.enabled && currentIndex === 1) {
-                decrementCurrentIndex()
-                currentItem.forceActiveFocus(Qt.BacktabFocusReason)
-                moved = true
-            } else if (currentIndex === 0) {
-                incrementCurrentIndex()
-                currentItem.forceActiveFocus(Qt.TabFocusReason)
-                moved = true
-            }
-            if (!moved && currentIndex === 1) {
-                leaveButtons.nextItemInFocusChain().forceActiveFocus(Qt.TabFocusReason)
-            }
+        Keys.onLeftPressed: navigate(LayoutMirroring.enabled)
+        Keys.onRightPressed: navigate(!LayoutMirroring.enabled)
+        Keys.onUpPressed: if (plasmoid.rootItem.sideBar) {
+            plasmoid.rootItem.sideBar.forceActiveFocus(Qt.BacktabFocusReason)
+        } else if (plasmoid.rootItem.contentArea) {
+            plasmoid.rootItem.contentArea.forceActiveFocus(Qt.BacktabFocusReason)
         }
-        Keys.onUpPressed: plasmoid.rootItem.sideBar.forceActiveFocus(Qt.BacktabFocusReason)
     }
 
     LeaveButtons {
@@ -204,9 +205,15 @@ PlasmaExtras.PlasmoidHeading {
     }
 
     Shortcut {
-        sequences: ["Ctrl+Tab", "Ctrl+Shift+Tab", StandardKey.NextChild, StandardKey.PreviousChild]
+        sequences: ["Ctrl+Tab", StandardKey.NextChild]
         onActivated: {
-            tabBar.currentIndex = (tabBar.currentIndex === 0) ? 1 : 0;
+            tabBar.currentIndex = (tabBar.currentIndex + 1) % tabBar.count;
+        }
+    }
+    Shortcut {
+        sequences: ["Ctrl+Shift+Tab", StandardKey.PreviousChild]
+        onActivated: {
+            tabBar.currentIndex = (tabBar.currentIndex + tabBar.count - 1) % tabBar.count;
         }
     }
 }

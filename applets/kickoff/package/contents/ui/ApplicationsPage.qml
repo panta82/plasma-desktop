@@ -11,12 +11,13 @@ import org.kde.plasma.core 2.0 as PlasmaCore
 import org.kde.plasma.components 3.0 as PC3
 import org.kde.plasma.private.kicker 0.1 as Kicker
 
+// Apps tab: categories and their apps on the left, all apps A-Z on the right
 BasePage {
     id: root
     sideBarComponent: KickoffListView {
         id: sideBar
         focus: true // needed for Loaders
-        model: plasmoid.rootItem.rootModel
+        model: plasmoid.rootItem.categoriesModel
         // needed otherwise app displayed at top-level will show a first character as group.
         section.property: ""
         delegate: KickoffListDelegate {
@@ -24,165 +25,186 @@ BasePage {
             isCategoryListItem: true
         }
     }
-    contentAreaComponent: VerticalStackView {
-        id: stackView
+    contentAreaComponent: FocusScope {
+        id: contentArea
 
-        popEnter: Transition {
-            NumberAnimation {
-                property: "x"
-                from: 0.5 * root.width
-                to: 0
-                duration: PlasmaCore.Units.longDuration
-                easing.type: Easing.OutCubic
-            }
-            NumberAnimation {
-                property: "opacity"
-                from: 0.0
-                to: 1.0
-                duration: PlasmaCore.Units.longDuration
-                easing.type: Easing.OutCubic
+        // Reading count makes these re-evaluate after the models (re)populate.
+        // modelForRow() returns null for top-level apps, which launch from the sidebar instead.
+        readonly property Kicker.AppsModel categoryModel: plasmoid.rootItem.categoriesModel.count > 0 && root.sideBarItem
+            ? plasmoid.rootItem.categoriesModel.modelForRow(root.sideBarItem.currentIndex) : null
+        readonly property Kicker.AppsModel allAppsModel: plasmoid.rootItem.rootModel.count > 1
+            ? plasmoid.rootItem.rootModel.modelForRow(1) : null // row 0 is favorites
+
+        property bool allAppsFocused: false
+        // The view the search field's arrow keys and Enter act on
+        readonly property Item currentView: allAppsFocused ? allAppsStack.currentItem : categoryLoader.item
+
+        readonly property real paneImplicitWidth: KickoffSingleton.gridCellSize * Math.min(3, plasmoid.rootItem.minimumGridRowCount)
+            + plasmoid.rootItem.backgroundMetrics.leftPadding + plasmoid.rootItem.backgroundMetrics.rightPadding
+        implicitWidth: paneImplicitWidth * 2 + separator.implicitWidth
+        implicitHeight: Math.max(categoryLoader.implicitHeight, allAppsStack.implicitHeight)
+
+        function focusView(view, reason) {
+            if (view.currentItem) {
+                view.currentItem.forceActiveFocus(reason)
+            } else {
+                view.forceActiveFocus(reason)
             }
         }
 
-        pushEnter: Transition {
-            NumberAnimation {
-                property: "x"
-                from: 0.5 * -root.width
-                to: 0
-                duration: PlasmaCore.Units.longDuration
-                easing.type: Easing.OutCubic
+        // Unhandled Left on the category view keeps bubbling to BasePage, which focuses the sidebar
+        Keys.onLeftPressed: event => {
+            const toAllApps = LayoutMirroring.enabled && !allAppsFocused
+            const toCategory = !LayoutMirroring.enabled && allAppsFocused
+            if (toAllApps || toCategory) {
+                focusView(toAllApps ? allAppsStack.currentItem : categoryLoader.item, Qt.BacktabFocusReason)
+            } else {
+                event.accepted = false
             }
-            NumberAnimation {
-                property: "opacity"
-                from: 0.0
-                to: 1.0
-                duration: PlasmaCore.Units.longDuration
-                easing.type: Easing.OutCubic
+        }
+        Keys.onRightPressed: event => {
+            const toAllApps = !LayoutMirroring.enabled && !allAppsFocused
+            const toCategory = LayoutMirroring.enabled && allAppsFocused
+            if (toAllApps || toCategory) {
+                focusView(toAllApps ? allAppsStack.currentItem : categoryLoader.item, Qt.TabFocusReason)
+            } else {
+                event.accepted = false
             }
         }
 
-        readonly property string preferredFavoritesViewObjectName: plasmoid.configuration.favoritesDisplay === 0 ? "favoritesGridView" : "favoritesListView"
-        readonly property Component preferredFavoritesViewComponent: plasmoid.configuration.favoritesDisplay === 0 ? favoritesGridViewComponent : favoritesListViewComponent
-        readonly property string preferredAppsViewObjectName: plasmoid.configuration.applicationsDisplay === 0 ? "applicationsGridView" : "applicationsListView"
-        readonly property Component preferredAppsViewComponent: plasmoid.configuration.applicationsDisplay === 0 ? applicationsGridViewComponent : applicationsListViewComponent
-        // NOTE: The 0 index modelForRow isn't supposed to be used. That's just how it works.
-        // But to trigger model data update, set initial value to 0
-        property int appsModelRow: 0
-        readonly property Kicker.AppsModel appsModel: plasmoid.rootItem.rootModel.modelForRow(appsModelRow)
-        focus: true
-        initialItem: preferredFavoritesViewComponent
+        Loader {
+            id: categoryLoader
+            focus: true
+            anchors {
+                left: parent.left
+                top: parent.top
+                bottom: parent.bottom
+            }
+            width: Math.round((parent.width - separator.width) / 2)
+            sourceComponent: plasmoid.configuration.applicationsDisplay === 0 ? categoryGridComponent : categoryListComponent
+            onActiveFocusChanged: if (activeFocus) {
+                contentArea.allAppsFocused = false
+            }
+        }
+
+        PlasmaCore.SvgItem {
+            id: separator
+            anchors {
+                left: categoryLoader.right
+                top: parent.top
+                bottom: parent.bottom
+            }
+            implicitWidth: naturalSize.width
+            elementId: "vertical-line"
+            svg: KickoffSingleton.lineSvg
+        }
+
+        VerticalStackView {
+            id: allAppsStack
+            anchors {
+                left: separator.right
+                right: parent.right
+                top: parent.top
+                bottom: parent.bottom
+            }
+            onActiveFocusChanged: if (activeFocus) {
+                contentArea.allAppsFocused = true
+            }
+
+            popEnter: Transition {
+                NumberAnimation {
+                    property: "x"
+                    from: 0.5 * root.width
+                    to: 0
+                    duration: PlasmaCore.Units.longDuration
+                    easing.type: Easing.OutCubic
+                }
+                NumberAnimation {
+                    property: "opacity"
+                    from: 0.0
+                    to: 1.0
+                    duration: PlasmaCore.Units.longDuration
+                    easing.type: Easing.OutCubic
+                }
+            }
+
+            pushEnter: Transition {
+                NumberAnimation {
+                    property: "x"
+                    from: 0.5 * -root.width
+                    to: 0
+                    duration: PlasmaCore.Units.longDuration
+                    easing.type: Easing.OutCubic
+                }
+                NumberAnimation {
+                    property: "opacity"
+                    from: 0.0
+                    to: 1.0
+                    duration: PlasmaCore.Units.longDuration
+                    easing.type: Easing.OutCubic
+                }
+            }
+
+            initialItem: allAppsListComponent
+        }
 
         Component {
-            id: favoritesListViewComponent
-            DropAreaListView {
-                id: favoritesListView
-                objectName: "favoritesListView"
-                mainContentView: true
-                focus: true
-                model: plasmoid.rootItem.rootModel.favoritesModel
-            }
-        }
-
-        Component {
-            id: favoritesGridViewComponent
-            DropAreaGridView {
-                id: favoritesGridView
-                objectName: "favoritesGridView"
-                focus: true
-                model: plasmoid.rootItem.rootModel.favoritesModel
-            }
-        }
-
-        Component {
-            id: applicationsListViewComponent
-
+            id: categoryListComponent
             KickoffListView {
-                id: applicationsListView
                 objectName: "applicationsListView"
                 mainContentView: true
-                model: stackView.appsModel
-                section.property: model && model.description === "KICKER_ALL_MODEL" ? "group" : ""
+                focus: true
+                model: contentArea.categoryModel
+                section.property: ""
+            }
+        }
+
+        Component {
+            id: categoryGridComponent
+            KickoffGridView {
+                objectName: "applicationsGridView"
+                focus: true
+                model: contentArea.categoryModel
+            }
+        }
+
+        Component {
+            id: allAppsListComponent
+            KickoffListView {
+                id: allAppsListView
+                objectName: "allAppsListView"
+                mainContentView: true
+                focus: true
+                model: contentArea.allAppsModel
+                section.property: "group"
                 section.criteria: ViewSection.FirstCharacter
-                hasSectionView: stackView.appsModelRow === 1
+                hasSectionView: true
 
                 onShowSectionViewRequested: {
-                    stackView.push(applicationsSectionViewComponent, {
+                    allAppsStack.push(allAppsSectionViewComponent, {
                         "currentSection": sectionName,
-                        "parentView": applicationsListView
+                        "parentView": allAppsListView
                     });
                 }
             }
         }
 
         Component {
-            id: applicationsSectionViewComponent
-
+            id: allAppsSectionViewComponent
             SectionView {
-                id: sectionView
-                model: stackView.appsModel.sections
+                model: contentArea.allAppsModel.sections
 
                 onHideSectionViewRequested: {
-                    stackView.pop();
-                    stackView.currentItem.view.positionViewAtIndex(index, ListView.Beginning);
-                    stackView.currentItem.currentIndex = index;
-                }
-            }
-        }
-
-        Component {
-            id: applicationsGridViewComponent
-            KickoffGridView {
-                id: applicationsGridView
-                objectName: "applicationsGridView"
-                model: stackView.appsModel
-            }
-        }
-
-        onPreferredFavoritesViewComponentChanged: {
-            if (root.sideBarItem !== null && root.sideBarItem.currentIndex === 0) {
-                stackView.replace(stackView.preferredFavoritesViewComponent)
-            }
-        }
-        onPreferredAppsViewComponentChanged: {
-            if (root.sideBarItem !== null && root.sideBarItem.currentIndex > 1) {
-                stackView.replace(stackView.preferredAppsViewComponent)
-            }
-        }
-
-        Connections {
-            target: root.sideBarItem
-            function onCurrentIndexChanged() {
-                // Only update row index if the condition is met.
-                // The 0 index modelForRow isn't supposed to be used. That's just how it works.
-                if (root.sideBarItem.currentIndex > 0) {
-                    appsModelRow = root.sideBarItem.currentIndex
-                }
-                if (root.sideBarItem.currentIndex === 0
-                    && stackView.currentItem.objectName !== stackView.preferredFavoritesViewObjectName) {
-                    stackView.replace(stackView.preferredFavoritesViewComponent)
-                } else if (root.sideBarItem.currentIndex === 1
-                    && stackView.currentItem.objectName !== "applicationsListView") {
-                    // Always use list view for alphabetical apps view since grid view doesn't have sections
-                    // TODO: maybe find a way to have a list view with grids in each section?
-                    stackView.replace(applicationsListViewComponent)
-                } else if (root.sideBarItem.currentIndex > 1
-                    && stackView.currentItem.objectName !== stackView.preferredAppsViewObjectName) {
-                    stackView.replace(stackView.preferredAppsViewComponent)
-                }
-            }
-        }
-        Connections {
-            target: plasmoid
-            function onExpandedChanged() {
-                if (plasmoid.expanded) {
-                    plasmoid.rootItem.contentArea.currentItem.forceActiveFocus()
+                    allAppsStack.pop();
+                    allAppsStack.currentItem.view.positionViewAtIndex(index, ListView.Beginning);
+                    allAppsStack.currentItem.currentIndex = index;
                 }
             }
         }
     }
-    // NormalPage doesn't get destroyed when deactivated, so the binding uses
+    // ApplicationsPage doesn't get destroyed when deactivated, so the bindings use
     // StackView.status and visible. This way the bindings are reset when
-    // NormalPage is Activated again.
+    // ApplicationsPage is Activated again.
     Binding {
         target: plasmoid.rootItem
         property: "sideBar"
@@ -193,7 +215,7 @@ BasePage {
     Binding {
         target: plasmoid.rootItem
         property: "contentArea"
-        value: root.contentAreaItem.currentItem // NOT just root.contentAreaItem
+        value: root.contentAreaItem.currentView // NOT just root.contentAreaItem
         when: root.T.StackView.status === T.StackView.Active && root.visible
         restoreMode: Binding.RestoreBinding
     }

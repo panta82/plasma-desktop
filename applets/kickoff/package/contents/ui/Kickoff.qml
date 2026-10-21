@@ -98,6 +98,27 @@ Item {
         favoritesModel: rootModel.favoritesModel
         ordering: 1 // Popular / Frequently Used
     }
+
+    readonly property Kicker.RecentUsageModel recentAppsModel: Kicker.RecentUsageModel {
+        favoritesModel: rootModel.favoritesModel
+        shownItems: Kicker.RecentUsageModel.OnlyApps
+    }
+
+    readonly property Kicker.RecentUsageModel recentFilesModel: Kicker.RecentUsageModel {
+        favoritesModel: rootModel.favoritesModel
+        shownItems: Kicker.RecentUsageModel.OnlyDocs
+    }
+
+    // Same categories as rootModel, minus its "Favorites" and "All Applications" rows
+    readonly property Kicker.AppsModel categoriesModel: Kicker.AppsModel {
+        appletInterface: plasmoid
+        favoritesModel: rootModel.favoritesModel
+
+        flat: true
+        sorted: plasmoid.configuration.alphaSort
+        showSeparators: true
+        showTopLevelItems: true
+    }
     //END
 
     //BEGIN UI elements
@@ -107,8 +128,8 @@ Item {
     // Set in Header.qml
     property PC3.TextField searchField: null
 
-    // Set in FullRepresentation.qml, ApplicationPage.qml, PlacesPage.qml
-    property Item sideBar: null // is null when searching
+    // Set in FullRepresentation.qml, HomePage.qml, ApplicationPage.qml, PlacesPage.qml
+    property Item sideBar: null // is null when searching; the favorites pane on the Home tab
     property Item contentArea: null // is searchView when searching
 
     // Set in NormalPage.qml

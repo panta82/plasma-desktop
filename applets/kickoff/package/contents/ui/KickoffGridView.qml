@@ -24,6 +24,14 @@ EmptyPage {
     property alias delegate: view.delegate
     property alias view: view
 
+    // Whether to reserve room for a scrollbar instead of centering the grid
+    property bool mayHaveScrollBar: plasmoid.rootItem.mayHaveGridWithScrollBar
+    // Centering stays stable with a scrollbar too, since its width is reserved either way
+    property bool centerContent: !mayHaveScrollBar
+    property int minimumColumnCount: plasmoid.rootItem.minimumGridRowCount
+    // Whether to show a dimmed highlight while neither this view nor the search field has focus
+    property bool showInactiveHighlight: true
+
     clip: view.height < view.contentHeight
 
     header: MouseArea {
@@ -73,8 +81,8 @@ EmptyPage {
         // There are lots of ways to try to center the content of a GridView
         // and many of them have bad visual flaws. This way works pretty well.
         // Not center aligning when there might be a scrollbar to keep click target positions consistent.
-        anchors.horizontalCenter: plasmoid.rootItem.mayHaveGridWithScrollBar ? undefined : parent.horizontalCenter
-        anchors.horizontalCenterOffset: if (plasmoid.rootItem.mayHaveGridWithScrollBar) {
+        anchors.horizontalCenter: root.centerContent ? parent.horizontalCenter : undefined
+        anchors.horizontalCenterOffset: if (root.mayHaveScrollBar) {
             if (root.mirrored) {
                 return verticalScrollBar.implicitWidth/2
             } else {
@@ -83,14 +91,14 @@ EmptyPage {
         } else {
             return 0
         }
-        width: Math.min(parent.width, Math.floor((parent.width - leftMargin - rightMargin - (plasmoid.rootItem.mayHaveGridWithScrollBar ? verticalScrollBar.implicitWidth : 0)) / cellWidth) * cellWidth + leftMargin + rightMargin)
+        width: Math.min(parent.width, Math.floor((parent.width - leftMargin - rightMargin - (root.mayHaveScrollBar ? verticalScrollBar.implicitWidth : 0)) / cellWidth) * cellWidth + leftMargin + rightMargin)
 
         Accessible.description: i18n("Grid with %1 rows, %2 columns", rows, columns) // can't use i18np here
 
 
         implicitWidth: {
-            let w = view.cellWidth * plasmoid.rootItem.minimumGridRowCount + leftMargin + rightMargin
-            if (plasmoid.rootItem.mayHaveGridWithScrollBar) {
+            let w = view.cellWidth * root.minimumColumnCount + leftMargin + rightMargin
+            if (root.mayHaveScrollBar) {
                 w += verticalScrollBar.implicitWidth
             }
             return w
@@ -122,7 +130,7 @@ EmptyPage {
                 3 : 0
             opacity: view.activeFocus
                 || (plasmoid.rootItem.contentArea === root
-                    && plasmoid.rootItem.searchField.activeFocus) ? 1 : 0.5
+                    && plasmoid.rootItem.searchField.activeFocus) ? 1 : (root.showInactiveHighlight ? 0.5 : 0)
             width: view.cellWidth
             height: view.cellHeight
             imagePath: "widgets/viewitem"
