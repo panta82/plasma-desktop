@@ -1,0 +1,27 @@
+# PANTA: Per-user Plasma 6.4.5 port of panta82/plasma-desktop kickoff-mods.
+Based on the Kubuntu Plasma 6.4.5 Kickoff package, with HomePage, HomePane,
+ApplicationsPage and NormalPage adapted from kickoff-mods at b8863733038a.
+The remaining changes add the models, grid settings and three-tab footer.
+This directory is linked from ~/.local/share/plasma/plasmoids/org.kde.plasma.kickoff.
+Remove that symlink and restart plasma-plasmashell.service to restore stock Kickoff.
+Panel configuration and shortcuts were backed up under ~/.local/state/plasma-menu-backups.
+
+Installed on 2026-10-22 on panta-rog, Plasma 6.4.5.
+Original configuration: ~/.local/state/plasma-menu-backups/20261022-175416/
+Widget 111 on panel 29 changed from org.kde.plasma.kickerdash to org.kde.plasma.kickoff.
+Its Meta shortcut and favorite ordering were preserved. Existing Kickoff widgets 55 and
+87 on the other two panels use this override as well.
+The plasma6 directory is a standalone Plasma 6 package alongside the original
+Plasma 5.27 package on the kickoff-mods branch.
+
+Verified in the live Plasma session: Home's three panes and favorites order; Apps'
+category and A-Z panes; Places; search results; Ctrl+Tab; Meta reopening on Home.
+
+To restore the complete original panel layout from this installation snapshot:
+1. systemctl --user stop plasma-plasmashell.service
+2. Remove only the symlink ~/.local/share/plasma/plasmoids/org.kde.plasma.kickoff
+3. Copy plasma-org.kde.plasma.desktop-appletsrc.flushed from the backup over
+   ~/.config/plasma-org.kde.plasma.desktop-appletsrc
+4. Copy kglobalshortcutsrc.flushed from the backup over ~/.config/kglobalshortcutsrc
+5. systemctl --user start plasma-plasmashell.service
+This restores the whole saved panel layout, including the original Application Dashboard.
