@@ -99,8 +99,9 @@ Item {
         ordering: 1 // Popular / Frequently Used
     }
 
+    // No favoritesModel: RecentUsageModel hides favorites when it has one, and
+    // the Home tab lists every recent app. Delegates fall back to rootModel's.
     readonly property Kicker.RecentUsageModel recentAppsModel: Kicker.RecentUsageModel {
-        favoritesModel: rootModel.favoritesModel
         shownItems: Kicker.RecentUsageModel.OnlyApps
     }
 

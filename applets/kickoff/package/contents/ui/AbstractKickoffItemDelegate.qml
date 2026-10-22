@@ -54,7 +54,7 @@ T.ItemDelegate {
             let allActions = model.actionList;
             const favoriteActions = Tools.createFavoriteActions(
                 i18n, //i18n() function callback
-                view.model.favoritesModel,
+                view.model.favoritesModel ?? plasmoid.rootItem.rootModel.favoritesModel,
                 model.favoriteId,
             );
             if (favoriteActions) {
