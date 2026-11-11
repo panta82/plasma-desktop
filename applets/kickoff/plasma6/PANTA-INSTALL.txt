@@ -14,6 +14,10 @@ Its Meta shortcut and favorite ordering were preserved. Existing Kickoff widgets
 The plasma6 directory is a standalone Plasma 6 package alongside the original
 Plasma 5.27 package on the kickoff-mods branch.
 
+Recent Apps filters out missing .desktop launchers on each menu opening, while
+preserving usage history. This uses QtCore, org.kde.kitemmodels and the FileHelper
+from org.kde.kirigamiaddons.formcard, all installed on panta-rog.
+
 Verified in the live Plasma session: Home's three panes and favorites order; Apps'
 category and A-Z panes; Places; search results; Ctrl+Tab; Meta reopening on Home.
 

@@ -114,9 +114,20 @@ PlasmoidItem {
         ordering: 1 // Popular / Frequently Used
     }
     // PANTA: Plasma 6 port of the kickoff-mods Home and split Apps tabs.
-    readonly property Kicker.RecentUsageModel recentAppsModel: Kicker.RecentUsageModel {
-        // Include favorite apps in the recent list, as in kickoff-mods.
-        shownItems: Kicker.RecentUsageModel.OnlyApps
+    readonly property RecentAppsModel recentAppsModel: RecentAppsModel {
+        sourceModel: Kicker.RecentUsageModel {
+            // Include favorite apps in the recent list, as in kickoff-mods.
+            shownItems: Kicker.RecentUsageModel.OnlyApps
+        }
+    }
+
+    Connections {
+        target: kickoff
+        function onExpandedChanged() {
+            if (kickoff.expanded) {
+                kickoff.recentAppsModel.invalidateFilter();
+            }
+        }
     }
 
     readonly property Kicker.RecentUsageModel recentFilesModel: Kicker.RecentUsageModel {
